@@ -65,25 +65,31 @@ class Square(Button):
         return ret
 
     def reveal(self):
-        def adj_reveal():
-            for square in self.adj_squares:
-                square.reveal()
-        if self.revealed or self.flagged:
-            return
-        elif not self.game.started:
-            if self.mined:
+        def first_turn():
+            if self.mined: # mercy rule
                 self.mined = False
                 self.game.mercy_square.make_mine()
             self.game.started = True
             self.game.clock = self.after(0, self.game.start_timer)
-        if self.mined:
+        def reveal_mined():
             self.config(text='X', fg=m_fg, bg=m_bg)
-            return self.game.end('lose')
-        elif self.adj_mines == 0:
+            self.game.end('lose')
+        def reveal_zero():
             self.config(bg='white')
-            adj_reveal()
-        else:
+            for square in self.adj_squares: # adj_reveal
+                square.reveal()
+        def reveal_number():
             self.config(text=str(self.adj_mines), fg=r_fg, bg=r_bg)
+        if self.revealed or self.flagged:
+            return
+        if not self.game.started:
+            first_turn()
+        if self.mined:
+            return reveal_mined()
+        elif self.adj_mines == 0:
+            reveal_zero()
+        else:
+            reveal_number()
         self.game.check()
 
     hard_reveal = lambda self: self.config(text='X', fg=m_fg, bg=m_bg)
@@ -100,25 +106,12 @@ class Game(Tk):
     def __init__(self):
         Tk.__init__(self)
         self.title('Minesweeper')
-        self.new_trigger = None
         self.prompt()
 
     def prompt(self):
-        # v = IntVar()
-        # v.set(0)
-        # labels = [Label(self, text=setting) for setting in settings]
-        # for i in range(len(labels)):
-        #     Radiobutton(self, value=str(labels[i][1]), variable=v)\
-        #                                      .grid(row=i, column=0)
-        # for i in range(len(labels)):
-        #     labels[i].grid(row=i, column=1)
-        # e = Entry(self).grid(row=len(labels)-1, column=2)
         self.new_game(16, 30, 99)
 
     def new_game(self, rows, columns, mines):
-        # def remove_trigger():
-        #     if self.new_trigger is not None:
-        #         self.unbind('<1>', self.new_trigger)
         def make_squares():
             self.squares = [Square(self, r, c) for r in range(rows)
                                                for c in range(columns)]
@@ -144,8 +137,6 @@ class Game(Tk):
             self.timer.grid(row=0, column=columns-1)
         self.rows, self.columns, self.mines = rows, columns, mines
         self.time, self.clock, self.started = -1, None, False
-        self.over = False
-        # remove_trigger()
         make_squares()
         make_mercy()
         make_mines()
@@ -171,10 +162,6 @@ class Game(Tk):
                 return square
         return null_square
 
-    def clear(self):
-        for widget in self.winfo_children():
-            widget.destroy()
-
     def end(self, result):
         def stop_timer():
             if self.clock is not None:
@@ -184,31 +171,28 @@ class Game(Tk):
                 if square.mined:
                     square.hard_reveal()
         def same_grid():
-            self.clear()
-            self.new_game(self.rows, self.columns, self.mines)
-        def new_grid():
-            self.clear()
+            for widget in self.winfo_children():
+                widget.destroy()
             self.prompt()
         def win():
             return tkinter.messagebox.askyesno('Victory!',
-                    'Congratulations, you won!\nPlay again on same grid?')
+                            'Congratulations, you won!\nPlay again?')
         def lose():
             return tkinter.messagebox.askyesno('Defeat',
-                                    'You lost!\nPlay again on same grid?')
-            # self.new_trigger = self.bind('<1>', lambda _: reset())
-        self.over = True
+                                            'You lost!\nPlay again?')
         stop_timer()
         reveal_mined()
         if eval(result)():
             same_grid()
         else:
-            new_grid()
+            self.destroy()
 
     def check(self):
         for square in self.squares:
             if not square.revealed and not square.mined:
                 return
         self.end('win')
+
 
 
 Game().mainloop()
