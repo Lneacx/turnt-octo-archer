@@ -11,15 +11,15 @@ m_bg = 'red'
 r_fg = 'dark red'
 r_bg = 'gray'
 
-settings = [('Beginner', 1),
-            ('Intermediate', 2),
-            ('Expert', 3),
-            ('Custom', 0)]
+headers = ['-Mode-', '-Height-', '-Width-', '-Mines-']
+select = [['Beginner',     '9',  '9',  '10'],
+          ['Intermediate', '16', '16', '40'],
+          ['Expert',       '16', '30', '99']]
 
 class Square(Button):
     def __init__(self, game, row, column):
         Button.__init__(self, game, fg=_fg, bg=_bg, height=1, width=3,
-                        font=_font, command=self.reveal)
+                        font=_font, bd=1, command=self.reveal)
         self.game, self.row, self.column = game, row, column
         self.mined = False
         self.bind('<3>', self.flag)
@@ -109,7 +109,49 @@ class Game(Tk):
         self.prompt()
 
     def prompt(self):
-        self.new_game(16, 30, 99)
+        def make_headers():
+            for i in range(len(headers)):
+                header = Label(self, text=headers[i], padx=5)
+                header.grid(row=0, column=i)
+        def make_select():
+            for r in range(len(select)):
+                name = select[r][0]
+                radio = Radiobutton(self, text=name, variable=mode,
+                                                value=r+1, padx=10)
+                radio.grid(row=r+1, sticky=W)
+                for c in range(1, len(select[r])):
+                    stat = Label(self, text=select[r][c], padx=10)
+                    stat.grid(row=r+1, column=c, sticky=W)
+        def make_custom():
+            c_radio = Radiobutton(self, text='Custom', variable=mode,
+                                                     value=0, padx=10)
+            c_radio.grid(row=len(select)+1, sticky=W)
+            entries = [Entry(self, width=5, justify=CENTER)
+                            for _ in range(len(select[0])-1)]
+            for i in range(len(entries)):
+                entries[i].grid(row=len(select)+1, column=i+1, sticky=W)
+            return entries
+        def make_ok():
+            ok = Button(self, text='OK', width=7)
+            ok.grid(row=len(select)+2, column=len(select[0])-1, sticky=NW)
+            # command=process
+        def process():
+            if mode.get() == 0:
+                pass
+                # f = lambda x: int(entry[x].get())
+            else:
+                pass
+                # i = mode.get()
+                # f = lambda x: int(select[i][x])
+            # new_game(f(0), f(1), f(2))
+        mode = IntVar()
+        make_headers()
+        make_select()
+        entries = make_custom()
+        mode.set(1)
+        make_ok()
+        # self.new_game(16, 30, 99)
+        # hook up entries, OK
 
     def new_game(self, rows, columns, mines):
         def make_squares():
@@ -192,7 +234,6 @@ class Game(Tk):
             if not square.revealed and not square.mined:
                 return
         self.end('win')
-
 
 
 Game().mainloop()
