@@ -228,7 +228,7 @@ class Game(Tk):
         def stop_timer():
             if self.clock is not None:
                 self.after_cancel(self.clock)
-        def reveal_mined():
+        def reveal_all_mined():
             for square in self.squares:
                 if square.mined:
                     square.naive_reveal_mined()
@@ -243,7 +243,7 @@ class Game(Tk):
         def new_grid():
             self.prompt()
         stop_timer()
-        reveal_mined()
+        reveal_all_mined()
         if eval(result)():
             same_grid()
         else:
