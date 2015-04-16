@@ -41,6 +41,8 @@ class Square(Button):
         return self.cget('text') == '?'
 
     def flag(self, *args):
+        if self.revealed:
+            return
         if not self.flagged:
             self.config(text='?', fg=F_FG)
         else:
@@ -250,7 +252,7 @@ class Game(Tk):
         win = True
         for square in self.squares:
             if square.mined and square.revealed:
-                self.end('lose')
+                return self.end('lose')
             if not square.mined and not square.revealed:
                 win = False
         if win:
