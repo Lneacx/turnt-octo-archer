@@ -2,54 +2,58 @@ from tkinter import *
 import tkinter.messagebox
 import random
 
-_font = 'Verdana 12'
-_fg = 'black'
+FONT = 'Verdana 12'
+FG = 'black'
+BG = 'light blue'
+F_FG = 'dark blue'
+M_FG = 'black'
+M_BG = 'red'
+R_FG = 'dark red'
+R_BG = 'gray'
+Z_BG = 'white'
 
 class Square(Button):
+    class null:
+        mined = False
+        reveal = lambda self: None
 
-    _bg = 'light blue'
-    f_fg = 'dark blue'
-    m_fg = 'black'
-    m_bg = 'red'
-    r_fg = 'dark red'
-    r_bg = 'gray'
-    z_bg = 'white'
+    null = null()
 
     def __init__(self, game, row, column):
-        Button.__init__(self, game, fg=_fg, bg=self._bg, height=1,
-                        width=3, font=_font, bd=1,
-                        command=self.reveal)
+        Button.__init__(self, game, fg=FG, bg=BG, height=1, width=3,
+                        font=FONT, bd=1, command=self.click)
         self.game, self.row, self.column = game, row, column
         self.mined = False
         self.bind('<3>', self.flag)
 
+    def make_mine(self):
+        self.mined = True
+
+    def unmake_mine(self):
+        self.mined = False
+
     @property
     def revealed(self):
-        return not self.cget('bg') == self._bg
+        return self.cget('bg') != BG
 
     @property
     def flagged(self):
         return self.cget('text') == '?'
 
     def flag(self, *args):
-        if self.revealed:
-            return
         if not self.flagged:
-            self.config(text='?', fg=self.f_fg)
+            self.config(text='?', fg=F_FG)
         else:
-            self.config(text='', fg=_fg)
+            self.config(text='', fg=FG)
         u_counter = self.game.u_counter
         unflagged = str(self.game.unflagged)
         u_counter.config(text=unflagged)
 
-    def make_mine(self):
-        self.mined = True
-
     @property
     def adj_squares(self):
         ret = []
-        for dr, dc in [(-1, 1),  (0, 1),  (1, 1),
-                       (-1, 0),           (1, 0),
+        for dr, dc in [(-1,  1), (0,  1), (1,  1),
+                       (-1,  0),          (1,  0),
                        (-1, -1), (0, -1), (1, -1)]:
             adj_square = self.game.get_square(self.row+dr, self.column+dc)
             ret.append(adj_square)
@@ -63,43 +67,39 @@ class Square(Button):
                 ret += 1
         return ret
 
-    naive_reveal_mined = lambda self: self.config(text='X', fg=self.m_fg,
-                                                  bg=self.m_bg)
     def reveal(self):
-        def first_turn():
+        def reveal_first():
             if self.mined: # mercy rule
-                self.mined = False
+                self.unmake_mine()
                 self.game.mercy_square.make_mine()
             self.game.started = True
             self.game.clock = self.after(0, self.game.start_timer)
         def reveal_mined():
-            self.naive_reveal_mined()
-            self.game.end('lose')
+            self.config(text='X', fg=M_FG, bg=M_BG)
         def reveal_zero():
-            self.config(bg=self.z_bg)
+            self.config(bg=Z_BG)
             for square in self.adj_squares: # adj_reveal
                 square.reveal()
         def reveal_number():
-            self.config(text=str(self.adj_mines), fg=self.r_fg,
-                        bg=self.r_bg)
-        if self.revealed or self.flagged:
+            self.config(text=str(self.adj_mines), fg=R_FG, bg=R_BG)
+        if self.revealed:
             return
+        if self.flagged:
+            self.flag()
         if not self.game.started:
-            first_turn()
+            reveal_first()
         if self.mined:
-            return reveal_mined()
+            reveal_mined()
         elif self.adj_mines == 0:
             reveal_zero()
         else:
             reveal_number()
+
+    def click(self):
+        if self.flagged:
+            return
+        self.reveal()
         self.game.check()
-
-
-class NullSquare:
-    mined = False
-    reveal = lambda self: None
-
-null_square = NullSquare()
 
 
 class Mode:    
@@ -175,8 +175,9 @@ class Game(Tk):
 
     def new_game(self, mode):
         def make_squares():
-            self.squares = [Square(self, r, c) for r in range(self.rows)
-                                            for c in range(self.columns)]
+            self.squares = [Square(self, r, c)
+                            for c in range(self.columns)
+                            for r in range(self.rows)]
             for square in self.squares:
                 square.grid(row=square.row+1, column=square.column)
         def make_mercy():
@@ -190,10 +191,10 @@ class Game(Tk):
                     square = random.choice(self.squares)
                 square.make_mine()
         def make_unflagged_counter():
-            self.u_counter = Label(self, text=str(self.mines), font=_font)
+            self.u_counter = Label(self, text=str(self.mines), font=FONT)
             self.u_counter.grid(row=0, column=0)
         def make_timer():
-            self.timer = Label(self, text='0', font=_font)
+            self.timer = Label(self, text='0', font=FONT)
             self.timer.grid(row=0, column=self.columns-1)
         self.mode, self.mines = mode, mode.mines
         self.rows, self.columns = mode.height, mode.width
@@ -222,7 +223,7 @@ class Game(Tk):
         for square in self.squares:
             if square.row == row and square.column == column:
                 return square
-        return null_square
+        return Square.null
 
     def end(self, result):
         def stop_timer():
@@ -231,29 +232,29 @@ class Game(Tk):
         def reveal_all_mined():
             for square in self.squares:
                 if square.mined:
-                    square.naive_reveal_mined()
+                    square.reveal()
         def win():
             return tkinter.messagebox.askyesno('Victory!',
                             'Congratulations, you won!\nReplay?')
         def lose():
             return tkinter.messagebox.askyesno('Defeat',
                                             'You lost!\nReplay?')
-        def same_grid():
-            self.new_game(self.mode)
-        def new_grid():
-            self.prompt()
         stop_timer()
         reveal_all_mined()
         if eval(result)():
-            same_grid()
+            self.new_game(self.mode)
         else:
-            new_grid()
+            self.prompt()
 
     def check(self):
+        win = True
         for square in self.squares:
-            if not square.revealed and not square.mined:
-                return
-        self.end('win')
+            if square.mined and square.revealed:
+                self.end('lose')
+            if not square.mined and not square.revealed:
+                win = False
+        if win:
+            self.end('win')
 
 
 Game().mainloop()
