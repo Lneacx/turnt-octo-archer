@@ -13,8 +13,6 @@ M_FG = 'black'
 M_BG = 'red'
 W_FG = 'light blue'
 W_BG = 'blue'
-WIN = True
-LOSE = False
 
 class Square(Button):
 
@@ -74,8 +72,8 @@ class Square(Button):
                 ret += 1
         return ret
 
-    def _reveal_mined(self, result):
-        if result is WIN:
+    def _reveal_mined(self, win):
+        if win:
             self.config(text='X', fg=W_FG, bg=W_BG)
         else:
             self.config(text='X', fg=M_FG, bg=M_BG)
@@ -239,23 +237,23 @@ class Game(Tk):
         win_check = True
         for square in self.squares:
             if square.mined and square.revealed:
-                return self.end(LOSE)
+                return self.end(False)
             if not square.mined and not square.revealed:
                 win_check = False
         if win_check:
-            self.end(WIN)
+            self.end(True)
 
-    def end(self, result):
+    def end(self, win):
         def stop_counters():
             self.after_cancel(self.clock)
-            if result is WIN:
+            if win:
                 self.u_counter.config(text=0)
         def reveal_all_mined():
             for square in self.squares:
                 if square.mined:
-                    square._reveal_mined(result)
+                    square._reveal_mined(win)
         def make_replay():
-            if result is WIN:
+            if win:
                 replay = tkinter.messagebox.askyesno('Victory!',
                     'Congratulations, you won!\nReplay?')
             else:
