@@ -13,6 +13,8 @@ M_FG = 'black'
 M_BG = 'red'
 W_FG = 'light blue'
 W_BG = 'blue'
+WIN = True
+LOSE = False
 
 class Square(Button):
 
@@ -21,12 +23,12 @@ class Square(Button):
         reveal = lambda self: None
 
     null = null()
+    mined = False
 
     def __init__(self, game, row, column):
-        Button.__init__(self, game, fg=FG, bg=BG, height=1, width=3,
-                        font=FONT, bd=1, command=self.click)
+        Button.__init__(self, game, fg=FG, bg=BG, font=FONT,
+                        width=3, bd=1, command=self.click)
         self.game, self.row, self.column = game, row, column
-        self.mined = False
         self.bind('<3>', self.flag)
 
     def make_mine(self):
@@ -51,7 +53,7 @@ class Square(Button):
         else:
             self.config(text='', fg=FG)
         u_counter = self.game.u_counter
-        unflagged = str(self.game.unflagged)
+        unflagged = self.game.unflagged
         u_counter.config(text=unflagged)
 
     @property
@@ -73,10 +75,10 @@ class Square(Button):
         return ret
 
     def _reveal_mined(self, result):
-        if result == 'lose':
-            self.config(text='X', fg=M_FG, bg=M_BG)
-        elif result == 'win':
+        if result is WIN:
             self.config(text='X', fg=W_FG, bg=W_BG)
+        else:
+            self.config(text='X', fg=M_FG, bg=M_BG)
 
     def reveal(self):
         def reveal_first():
@@ -89,8 +91,6 @@ class Square(Button):
             self.config(bg=Z_BG)
             for square in self.adj_squares: # adj_reveal
                 square.reveal()
-        def reveal_number():
-            self.config(text=str(self.adj_mines), fg=R_FG, bg=R_BG)
         if self.revealed:
             return
         if self.flagged:
@@ -98,11 +98,11 @@ class Square(Button):
         if not self.game.started:
             reveal_first()
         if self.mined:
-            self._reveal_mined('lose')
+            self._reveal_mined(LOSE)
         elif self.adj_mines == 0:
             reveal_zero()
         else:
-            reveal_number()
+            self.config(text=self.adj_mines, fg=R_FG, bg=R_BG)
 
     def click(self):
         if self.flagged or self.revealed:
@@ -120,9 +120,9 @@ class Mode:
         self.height, self.width, self.mines = height, width, mines
         self.name = name
 
-Mode.beginner =     Mode(9,  9,  10, 'Beginner')
+Mode.beginner     = Mode(9,  9,  10, 'Beginner')
 Mode.intermediate = Mode(16, 16, 40, 'Intermediate')
-Mode.expert =       Mode(16, 30, 99, 'Expert')
+Mode.expert       = Mode(16, 30, 99, 'Expert')
 Mode.defaults = [Mode.beginner, Mode.intermediate, Mode.expert]
 
 
@@ -202,7 +202,7 @@ class Game(Tk):
                     square = random.choice(self.squares)
                 square.make_mine()
         def make_unflagged_counter():
-            self.u_counter = Label(self, text=str(self.mines), font=FONT)
+            self.u_counter = Label(self, text=self.mines, font=FONT)
             self.u_counter.grid(row=0, column=0)
         def make_timer():
             self.timer = Label(self, text='0', font=FONT)
@@ -227,7 +227,7 @@ class Game(Tk):
 
     def start_timer(self):
         self.time += 1
-        self.timer.config(text=str(self.time))
+        self.timer.config(text=self.time)
         self.clock = self.after(1000, self.start_timer)
 
     def get_square(self, row, column):
@@ -236,35 +236,36 @@ class Game(Tk):
         return Square.null
 
     def check(self):
-        win = True
+        win_check = True
         for square in self.squares:
             if square.mined and square.revealed:
-                return self.end('lose')
+                return self.end(LOSE)
             if not square.mined and not square.revealed:
-                win = False
-        if win:
-            self.end('win')
+                win_check = False
+        if win_check:
+            self.end(WIN)
 
     def end(self, result):
-        def stop_timer():
-            if self.clock is not None:
-                self.after_cancel(self.clock)
+        def stop_counters():
+            self.after_cancel(self.clock)
+            if result is WIN:
+                self.u_counter.config(text=0)
         def reveal_all_mined():
             for square in self.squares:
                 if square.mined:
                     square._reveal_mined(result)
         def make_replay():
-            if result == 'lose':
-                replay = tkinter.messagebox.askyesno('Defeat',
-                    'You lost!\nReplay?')
-            elif result == 'win':
+            if result is WIN:
                 replay = tkinter.messagebox.askyesno('Victory!',
                     'Congratulations, you won!\nReplay?')
+            else:
+                replay = tkinter.messagebox.askyesno('Defeat',
+                    'You lost!\nReplay?')
             if replay:
                 self.new_game(self.mode)
             else:
                 self.prompt()
-        stop_timer()
+        stop_counters()
         reveal_all_mined()
         make_replay()
 
