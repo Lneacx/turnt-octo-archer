@@ -96,7 +96,7 @@ class Square(Button):
         if not self.game.started:
             reveal_first()
         if self.mined:
-            self._reveal_mined(LOSE)
+            self._reveal_mined(False)
         elif self.adj_mines == 0:
             reveal_zero()
         else:
