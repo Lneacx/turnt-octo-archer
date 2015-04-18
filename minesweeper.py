@@ -6,13 +6,16 @@ FONT = 'Verdana 12'
 FG = 'black'
 BG = 'light blue'
 F_FG = 'dark blue'
-M_FG = 'black'
-M_BG = 'red'
+Z_BG = 'white'
 R_FG = 'dark red'
 R_BG = 'gray'
-Z_BG = 'white'
+M_FG = 'black'
+M_BG = 'red'
+W_FG = 'light blue'
+W_BG = 'blue'
 
 class Square(Button):
+
     class null:
         mined = False
         reveal = lambda self: None
@@ -69,6 +72,12 @@ class Square(Button):
                 ret += 1
         return ret
 
+    def _reveal_mined(self, result):
+        if result == 'lose':
+            self.config(text='X', fg=M_FG, bg=M_BG)
+        elif result == 'win':
+            self.config(text='X', fg=W_FG, bg=W_BG)
+
     def reveal(self):
         def reveal_first():
             if self.mined: # mercy rule
@@ -76,8 +85,6 @@ class Square(Button):
                 self.game.mercy_square.make_mine()
             self.game.started = True
             self.game.clock = self.after(0, self.game.start_timer)
-        def reveal_mined():
-            self.config(text='X', fg=M_FG, bg=M_BG)
         def reveal_zero():
             self.config(bg=Z_BG)
             for square in self.adj_squares: # adj_reveal
@@ -91,20 +98,21 @@ class Square(Button):
         if not self.game.started:
             reveal_first()
         if self.mined:
-            reveal_mined()
+            self._reveal_mined('lose')
         elif self.adj_mines == 0:
             reveal_zero()
         else:
             reveal_number()
 
     def click(self):
-        if self.flagged:
+        if self.flagged or self.revealed:
             return
         self.reveal()
         self.game.check()
 
 
-class Mode:    
+class Mode:
+
     attrs = ['height', 'width', 'mines']
     headers = ['-Mode-', '-Height-', '-Width-', '-Mines-']
 
@@ -119,6 +127,7 @@ Mode.defaults = [Mode.beginner, Mode.intermediate, Mode.expert]
 
 
 class Game(Tk):
+
     def __init__(self):
         Tk.__init__(self)
         self.title('Minesweeper')
@@ -177,9 +186,9 @@ class Game(Tk):
 
     def new_game(self, mode):
         def make_squares():
-            self.squares = [Square(self, r, c)
-                            for c in range(self.columns)
-                            for r in range(self.rows)]
+            self.board = [[Square(self, r, c) for c in range(self.columns)]
+                                              for r in range(self.rows)]
+            self.squares = sum(self.board, [])
             for square in self.squares:
                 square.grid(row=square.row+1, column=square.column)
         def make_mercy():
@@ -222,31 +231,9 @@ class Game(Tk):
         self.clock = self.after(1000, self.start_timer)
 
     def get_square(self, row, column):
-        for square in self.squares:
-            if square.row == row and square.column == column:
-                return square
+        if row in range(self.rows) and column in range(self.columns):
+            return self.board[row][column]
         return Square.null
-
-    def end(self, result):
-        def stop_timer():
-            if self.clock is not None:
-                self.after_cancel(self.clock)
-        def reveal_all_mined():
-            for square in self.squares:
-                if square.mined:
-                    square.reveal()
-        def win():
-            return tkinter.messagebox.askyesno('Victory!',
-                            'Congratulations, you won!\nReplay?')
-        def lose():
-            return tkinter.messagebox.askyesno('Defeat',
-                                            'You lost!\nReplay?')
-        stop_timer()
-        reveal_all_mined()
-        if eval(result)():
-            self.new_game(self.mode)
-        else:
-            self.prompt()
 
     def check(self):
         win = True
@@ -257,6 +244,29 @@ class Game(Tk):
                 win = False
         if win:
             self.end('win')
+
+    def end(self, result):
+        def stop_timer():
+            if self.clock is not None:
+                self.after_cancel(self.clock)
+        def reveal_all_mined():
+            for square in self.squares:
+                if square.mined:
+                    square._reveal_mined(result)
+        def make_replay():
+            if result == 'lose':
+                replay = tkinter.messagebox.askyesno('Defeat',
+                    'You lost!\nReplay?')
+            elif result == 'win':
+                replay = tkinter.messagebox.askyesno('Victory!',
+                    'Congratulations, you won!\nReplay?')
+            if replay:
+                self.new_game(self.mode)
+            else:
+                self.prompt()
+        stop_timer()
+        reveal_all_mined()
+        make_replay()
 
 
 Game().mainloop()
